@@ -1,0 +1,5 @@
+FLASK_RUN_PORT: 8080
+FLASK_APP: matos.py
+REPO_DEST: /home/ec2-user/environment/Matos
+EKS_REGION: us-west-2
+EKS_CLUSTER_NAME: eksworkshop-eksctl

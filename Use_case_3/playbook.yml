@@ -1,0 +1,31 @@
+- name: "playbook"
+  hosts: localhost
+  vars_files:
+    - variables.yml
+  tasks:
+    - name: Run flask server 
+      environment:
+        FLASK_RUN_PORT: "{{FLASK_RUN_PORT  }}"
+        FLASK_APP: "{{ REPO_DEST }}/{{ FLASK_APP }}"
+      shell: "cd {{ REPO_DEST }};.venv/bin/python3 -m flask run&"
+
+    - name: Download cluster describe.
+      shell: "curl -X GET 'http://127.0.0.1:8080/resources/aws' -H 'accept: application/json' > '{{ REPO_DEST }}/Use_case_3/test_aws_get_resources.json'"
+
+    - name: get pid of flask server
+      shell: "ps -ef | grep -v grep | grep -w '.venv/bin/python3 -m flask run' | awk '{print $2}'"
+      register: running_flask
+
+    - name: kill flask server
+      shell: "kill -9 {{ item }}"
+      with_items: "{{ running_flask.stdout_lines }}"
+
+    - name: Run unit test 3
+      shell: "cd {{ REPO_DEST }};.venv/bin/python3 -m unittest Use_case_3/test_aws_get_resources.py"
+      register: eks_logging_status
+      failed_when: false
+      changed_when: false
+
+    - name: Run only when logging is not enable
+      shell: "aws eks update-cluster-config --region {{ EKS_REGION }} --name {{ EKS_CLUSTER_NAME }} --logging '{\"clusterLogging\":[{\"types\":[\"api\",\"audit\",\"authenticator\",\"controllerManager\",\"scheduler\"],\"enabled\":true}]}'"
+      when: eks_logging_status.rc != 0

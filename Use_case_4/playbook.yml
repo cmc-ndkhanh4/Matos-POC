@@ -1,0 +1,31 @@
+- name: "playbook"
+  hosts: localhost
+  vars_files:
+    - variables.yml
+  tasks:
+    - name: Run flask server 
+      environment:
+        FLASK_RUN_PORT: 8080
+        FLASK_APP: matos.py
+      shell: "{{ REPO_DEST }}/.venv/bin/python3 -m flask run&"
+
+    - name: Download cluster describe.
+      shell: "curl -X GET 'http://127.0.0.1:8080/resources/aws' -H 'accept: application/json' > Use_case_4/test_aws_get_resources.json"
+
+    - name: get pid of flask server
+      shell: "ps -ef | grep -v grep | grep -w '/home/ec2-user/environment/Matos/.venv/bin/python3 -m flask run' | awk '{print $2}'"
+      register: running_flask
+
+    - name: kill flask server
+      shell: "kill -9 {{ item }}"
+      with_items: "{{ running_flask.stdout_lines }}"
+
+    - name: Run unit test 4
+      shell: "cd {{ REPO_DEST }};.venv/bin/python3 -m unittest Use_case_4/test_aws_get_resources.py"
+      register: eks_lastest_version
+      failed_when: false
+      changed_when: false
+
+    - name: Run only when EKS version is not lastest
+      shell: "aws eks update-cluster-version --region {{ EKS_REGION }} --name {{ EKS_CLUSTER_NAME }} --kubernetes-version 1.22"
+      when: eks_lastest_version.rc != 0
